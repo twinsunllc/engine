@@ -599,6 +599,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 // their frames to CGRectZero prevents ios autofill from taking them into
 // account.
 - (void)setIsVisibleToAutofill:(BOOL)isVisibleToAutofill {
+  // This probably needs to change (think it is getting overwritten by the updateSizeAndTransform stuff for now)
   self.frame = isVisibleToAutofill ? CGRectMake(0, 0, 1, 1) : CGRectZero;
 }
 
@@ -660,6 +661,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
            @"Expected a FlutterTextRange for range (got %@).", [range class]);
   NSRange textRange = ((FlutterTextRange*)range).range;
   NSAssert(textRange.location != NSNotFound, @"Expected a valid text range.");
+  NSLog(@"[scribble] textInRange %@ - %@ = %@", @(textRange.location), @(textRange.length), [self.text substringWithRange:textRange]);
   return [self.text substringWithRange:textRange];
 }
 
@@ -922,6 +924,8 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
   [_textInputDelegate showAutocorrectionPromptRectForStart:start
                                                        end:end
                                                 withClient:_textInputClient];
+  NSLog(@"[scribble] firstRectForRange %@ - %@", @(start), @(end));
+  return CGRectMake(0, 0, start * 15, 19); // deleting does not work at all without this
   // TODO(cbracken) Implement.
   return CGRectZero;
 }
@@ -933,22 +937,33 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
 - (UITextPosition*)closestPositionToPoint:(CGPoint)point {
   // TODO(cbracken) Implement.
+  // Maybe janky without these?
+  // NSLog(@"[scribble] closestPositionToPoint (%@, %@)", @(point.x), @(point.y));
+  // if (point.x < 20) {
+  //   NSLog(@"[scribble] positionWithIndex:0");
+  //   return [FlutterTextPosition positionWithIndex:0];
+  // }
+  // NSLog(@"[scribble] positionWithIndex:5");
+  // return [FlutterTextPosition positionWithIndex:5];
   NSUInteger currentIndex = ((FlutterTextPosition*)_selectedTextRange.start).index;
   return [FlutterTextPosition positionWithIndex:currentIndex];
 }
 
 - (NSArray*)selectionRectsForRange:(UITextRange*)range {
   // TODO(cbracken) Implement.
+  NSLog(@"[scribble] selectionRectsForRange");
   return @[];
 }
 
 - (UITextPosition*)closestPositionToPoint:(CGPoint)point withinRange:(UITextRange*)range {
   // TODO(cbracken) Implement.
+  NSLog(@"[scribble] closestPositionToPoint (%@, %@) withinRange", @(point.x), @(point.y));
   return range.start;
 }
 
 - (UITextRange*)characterRangeAtPoint:(CGPoint)point {
   // TODO(cbracken) Implement.
+  NSLog(@"[scribble] characterRangeAtPoint (%@, %@)", @(point.x), @(point.y));
   NSUInteger currentIndex = ((FlutterTextPosition*)_selectedTextRange.start).index;
   return [FlutterTextRange rangeWithNSRange:fml::RangeForCharacterAtIndex(self.text, currentIndex)];
 }
@@ -1007,6 +1022,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 }
 
 - (void)insertText:(NSString*)text {
+  NSLog(@"[scribble] insertText: %@", text);
   _selectionAffinity = _kTextAffinityDownstream;
   [self replaceRange:_selectedTextRange withText:text];
 }
@@ -1095,6 +1111,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
   NSString* method = call.method;
+  NSLog(@"TextInputPlugin.handleMethodCall %@", method);
   id args = call.arguments;
   if ([method isEqualToString:@"TextInput.show"]) {
     [self showTextInput];
@@ -1108,6 +1125,10 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
   } else if ([method isEqualToString:@"TextInput.setEditingState"]) {
     [self setTextInputEditingState:args];
     result(nil);
+  } else if ([method isEqualToString:@"TextInput.setEditableSizeAndTransform"]) {
+    NSLog(@"TextInput.setEditableSizeAndTransform");
+    [self setSizeAndTransform:args];
+    result(nil);
   } else if ([method isEqualToString:@"TextInput.clearClient"]) {
     [self clearTextInputClient];
     result(nil);
@@ -1117,6 +1138,11 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
   } else {
     result(FlutterMethodNotImplemented);
   }
+}
+
+- (void)setSizeAndTransform:(NSDictionary*)sizeAndTransform {
+  // This seems necessary to set up where the scribble interactable element will be
+  _activeView.frame = CGRectMake([sizeAndTransform[@"transform"][12] intValue], [sizeAndTransform[@"transform"][13] intValue], [sizeAndTransform[@"width"] intValue], [sizeAndTransform[@"height"] intValue]);
 }
 
 - (void)showTextInput {
@@ -1325,6 +1351,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 }
 
 - (void)addToInputParentViewIfNeeded:(FlutterTextInputView*)inputView {
+  NSLog(@"addToInputParentViewIfNeeded");
   UIView* parentView = self.textInputParentView;
   if (inputView.superview != parentView) {
     [parentView addSubview:inputView];
