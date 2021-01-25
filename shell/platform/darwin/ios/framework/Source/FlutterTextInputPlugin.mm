@@ -368,40 +368,29 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
 #pragma mark - FlutterTextSelectionRect
 
-@implementation FlutterTextSelectionRect {
-  CGRect _rect;
+@implementation FlutterTextSelectionRect
+
+@synthesize rect;
+@synthesize writingDirection;
+@synthesize containsStart;
+@synthesize containsEnd;
+@synthesize isVertical;
+
++ (instancetype)selectionRectWithRectAndInfo:(CGRect)rect
+                            writingDirection:(NSWritingDirection)writingDirection
+                               containsStart:(BOOL)containsStart
+                                 containsEnd:(BOOL)containsEnd
+                                  isVertical:(BOOL)isVertical {
+  return [[[FlutterTextSelectionRect alloc] initWithRectAndInfo:rect writingDirection:writingDirection containsStart:containsStart containsEnd:containsEnd isVertical:isVertical] autorelease];
 }
 
-+ (instancetype)selectionRectWithRect:(CGRect)rect {
-  return [[[FlutterTextSelectionRect alloc] initWithRect: rect] autorelease];
-}
-
-- (instancetype)initWithRect:(CGRect)rect {
+- (instancetype)initWithRectAndInfo:(CGRect)rect
+                   writingDirection:(NSWritingDirection)writingDirection
+                      containsStart:(BOOL)containsStart
+                        containsEnd:(BOOL)containsEnd
+                         isVertical:(BOOL)isVertical {
   self = [super init];
-  if (self) {
-    _rect = rect;
-  }
   return self;
-}
-
-- (CGRect)rect {
-  return _rect;
-}
-
-- (NSWritingDirection)writingDirection {
-  return UITextWritingDirectionNatural;
-}
-
-- (BOOL)containsStart {
-  return FALSE;
-}
-
-- (BOOL)containsEnd {
-  return FALSE;
-}
-
-- (BOOL)isVertical {
-  return FALSE;
 }
 
 @end
@@ -563,6 +552,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
 // Return true if the new input state needs to be synced back to the framework.
 - (BOOL)setTextInputState:(NSDictionary*)state {
+  NSLog(@"[scribble][cursor] setTextInputState");
   NSString* newText = state[@"text"];
   BOOL textChanged = ![self.text isEqualToString:newText];
   if (textChanged) {
@@ -589,6 +579,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
   NSRange oldSelectedRange = [(FlutterTextRange*)self.selectedTextRange range];
   if (!NSEqualRanges(selectedRange, oldSelectedRange)) {
+    NSLog(@"[scribble][cursor] setTextInputState - selection changed");
     needsEditingStateUpdate = YES;
     [self.inputDelegate selectionWillChange:self];
 
@@ -606,6 +597,36 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
   // For consistency with Android behavior, send an update to the framework if anything changed.
   return needsEditingStateUpdate;
+}
+
+// Problem: tapping doesn't change the cursor location. have to make a small drag with the pencil.
+// Tried so far:
+// - not being the first responder
+// - forwarding the following selectors to the superview
+
+- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event {
+    NSLog(@"[scribble][cursor] touchesBegan");
+    [self.superview touchesBegan:touches withEvent:event];
+}
+
+- (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event {
+    NSLog(@"[scribble][cursor] touchesMoved");
+    [self.superview touchesMoved:touches withEvent:event];
+}
+
+- (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event {
+    NSLog(@"[scribble][cursor] touchesEnded");
+    [self.superview touchesEnded:touches withEvent:event];
+}
+
+- (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event {
+    NSLog(@"[scribble][cursor] touchesCancelled");
+    [self.superview touchesCancelled:touches withEvent:event];
+}
+
+- (void)touchesEstimatedPropertiesUpdated:(NSSet *)touches {
+    NSLog(@"[scribble][cursor] touchesEstimatedPropertiesUpdated");
+    [self.superview touchesEstimatedPropertiesUpdated:touches];
 }
 
 // Extracts the selection information from the editing state dictionary.
@@ -983,18 +1004,16 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
     }
   if ([_selectionRects count] > first) {
       NSLog(@"[scribble] firstRectForRange -> %f, %f, %f, %f", [_selectionRects[first][0] floatValue], [_selectionRects[first][1] floatValue], [_selectionRects[first][2] floatValue], [_selectionRects[first][3] floatValue]);
-//    return CGRectMake(0, 0, [_selectionRects[start][2] floatValue], [_selectionRects[start][3] floatValue]);
     return CGRectMake([_selectionRects[first][0] floatValue], [_selectionRects[first][1] floatValue], [_selectionRects[first][2] floatValue], [_selectionRects[first][3] floatValue]);
   }
-  // return _cachedFirstRectForRange; // deleting does not work at all without this
   // TODO(cbracken) Implement.
   return CGRectZero;
 }
 
 - (CGRect)caretRectForPosition:(UITextPosition*)position {
   // TODO(cbracken) Implement.
-    NSUInteger start = ((FlutterTextPosition*)position).index;
-    NSLog(@"[scribble] caretRectForPosition (%@)", @(start));
+  NSUInteger start = ((FlutterTextPosition*)position).index;
+  NSLog(@"[scribble][cursor] caretRectForPosition (%@)", @(start));
   return CGRectZero;
 }
 
@@ -1008,8 +1027,8 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
   float _closestDistSq = 0;
   for (NSUInteger i = 0; i < [_selectionRects count]; i++) {
     CGRect rect = CGRectMake([_selectionRects[i][0] floatValue], [_selectionRects[i][1] floatValue], [_selectionRects[i][2] floatValue], [_selectionRects[i][3] floatValue]);
-    CGPoint center = CGPointMake(rect.origin.x + rect.size.width * 0.5, rect.origin.y + rect.size.height * 0.5);
-    float distSq = pow(center.x - point.x, 2) + pow(center.y - point.y, 2);
+    CGPoint pointForComparison = CGPointMake(rect.origin.x, rect.origin.y + rect.size.height * 0.5);
+    float distSq = pow(pointForComparison.x - point.x, 2) + pow(pointForComparison.y - point.y, 2);
     if (_closestIndex == i || distSq < _closestDistSq) {
       _closestDistSq = distSq;
       _closestIndex = i;
@@ -1021,12 +1040,6 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
     return [FlutterTextPosition positionWithIndex:_closestIndex];
   }
 
-  // if (point.x < 20) {
-  //   NSLog(@"[scribble] positionWithIndex:0");
-  //   return [FlutterTextPosition positionWithIndex:0];
-  // }
-  // NSLog(@"[scribble] positionWithIndex:5");
-  // return [FlutterTextPosition positionWithIndex:5];
   NSUInteger currentIndex = ((FlutterTextPosition*)_selectedTextRange.start).index;
   return [FlutterTextPosition positionWithIndex:currentIndex];
 }
@@ -1041,7 +1054,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
       float width = [_selectionRects[start][2] floatValue];
       if (start == end) { width = 0; }
     CGRect rect = CGRectMake([_selectionRects[start][0] floatValue], [_selectionRects[start][1] floatValue], width, [_selectionRects[start][3] floatValue]);
-    FlutterTextSelectionRect* selectionRect = [[FlutterTextSelectionRect alloc] initWithRect:rect];
+    FlutterTextSelectionRect* selectionRect = [[FlutterTextSelectionRect alloc] initWithRectAndInfo:rect writingDirection:UITextWritingDirectionNatural containsStart:(start == 0) containsEnd:(end == self.text.length) isVertical:FALSE];
 
     [rects addObject:selectionRect];
   }
@@ -1059,8 +1072,8 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
   float _closestDistSq = 0;
   for (NSUInteger i = start; i <= end && i < [_selectionRects count]; i++) {
     CGRect rect = CGRectMake([_selectionRects[i][0] floatValue], [_selectionRects[i][1] floatValue], [_selectionRects[i][2] floatValue], [_selectionRects[i][3] floatValue]);
-    CGPoint center = CGPointMake(rect.origin.x + rect.size.width * 0.5, rect.origin.y + rect.size.height * 0.5);
-    float distSq = pow(center.x - point.x, 2) + pow(center.y - point.y, 2);
+    CGPoint pointForComparison = CGPointMake(rect.origin.x, rect.origin.y + rect.size.height * 0.5);
+    float distSq = pow(pointForComparison.x - point.x, 2) + pow(pointForComparison.y - point.y, 2);
     if (_closestIndex == i || distSq < _closestDistSq) {
       _closestDistSq = distSq;
       _closestIndex = i;
@@ -1079,18 +1092,21 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 }
 
 - (void)beginFloatingCursorAtPoint:(CGPoint)point {
+  NSLog(@"[scribble][cursor] beginFloatingCursorAtPoint (%@, %@)", @(point.x), @(point.y));
   [_textInputDelegate updateFloatingCursor:FlutterFloatingCursorDragStateStart
                                 withClient:_textInputClient
                               withPosition:@{@"X" : @(point.x), @"Y" : @(point.y)}];
 }
 
 - (void)updateFloatingCursorAtPoint:(CGPoint)point {
+  NSLog(@"[scribble][cursor] updateFloatingCursorAtPoint (%@, %@)", @(point.x), @(point.y));
   [_textInputDelegate updateFloatingCursor:FlutterFloatingCursorDragStateUpdate
                                 withClient:_textInputClient
                               withPosition:@{@"X" : @(point.x), @"Y" : @(point.y)}];
 }
 
 - (void)endFloatingCursor {
+  NSLog(@"[scribble][cursor] endFloatingCursor");
   [_textInputDelegate updateFloatingCursor:FlutterFloatingCursorDragStateEnd
                                 withClient:_textInputClient
                               withPosition:@{@"X" : @(0), @"Y" : @(0)}];
