@@ -23,6 +23,8 @@
  */
 - (UIView<UITextInput>*)textInputView;
 
+@property(nonatomic, assign) FlutterMethodChannel* channel;
+
 @end
 
 /** An indexed position in the buffer of a Flutter text editing widget. */
@@ -41,6 +43,19 @@
 @property(nonatomic, readonly) NSRange range;
 
 + (instancetype)rangeWithNSRange:(NSRange)range;
+
+@end
+
+@interface FlutterTextSelectionRect : UITextSelectionRect
+
+@property(nonatomic, readonly) CGRect rect;
+@property(nonatomic, readonly) NSWritingDirection writingDirection;
+@property(nonatomic, readonly) BOOL containsStart;
+@property(nonatomic, readonly) BOOL containsEnd;
+@property(nonatomic, readonly) BOOL isVertical;
+
++ (instancetype)selectionRectWithRect:(CGRect)rect;
+- (instancetype)initWithRect:(CGRect)rect;
 
 @end
 

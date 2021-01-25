@@ -366,6 +366,46 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 }
 @end
 
+#pragma mark - FlutterTextSelectionRect
+
+@implementation FlutterTextSelectionRect {
+  CGRect _rect;
+}
+
++ (instancetype)selectionRectWithRect:(CGRect)rect {
+  return [[[FlutterTextSelectionRect alloc] initWithRect: rect] autorelease];
+}
+
+- (instancetype)initWithRect:(CGRect)rect {
+  self = [super init];
+  if (self) {
+    _rect = rect;
+  }
+  return self;
+}
+
+- (CGRect)rect {
+  return _rect;
+}
+
+- (NSWritingDirection)writingDirection {
+  return UITextWritingDirectionNatural;
+}
+
+- (BOOL)containsStart {
+  return FALSE;
+}
+
+- (BOOL)containsEnd {
+  return FALSE;
+}
+
+- (BOOL)isVertical {
+  return FALSE;
+}
+
+@end
+
 // A FlutterTextInputView that masquerades as a UITextField, and forwards
 // selectors it can't respond to to a shared UITextField instance.
 //
@@ -420,6 +460,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
   int _textInputClient;
   const char* _selectionAffinity;
   FlutterTextRange* _selectedTextRange;
+  NSArray* _selectionRects;
 }
 
 @synthesize tokenizer = _tokenizer;
@@ -913,6 +954,15 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 // candidates view for multi-stage input methods (e.g., Japanese) when using a
 // physical keyboard.
 
+- (void) setSelectionRects:(NSArray*)rects {
+    NSMutableArray *rectsAsRect = [[NSMutableArray alloc] initWithCapacity:[rects count]];
+    for (NSUInteger i = 0; i < [rects count]; i++) {
+        NSArray *rect = rects[i];
+        [rectsAsRect addObject:@[[NSNumber numberWithInt:[rect[0] intValue]], [NSNumber numberWithInt:[rect[1] intValue]], [NSNumber numberWithInt:[rect[2] intValue]], [NSNumber numberWithInt:[rect[3] intValue]]]];
+    }
+  _selectionRects = rectsAsRect;
+}
+
 - (CGRect)firstRectForRange:(UITextRange*)range {
   // multi-stage text is handled in the framework.
   if (_markedTextRange != nil) {
@@ -924,21 +974,53 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
   [_textInputDelegate showAutocorrectionPromptRectForStart:start
                                                        end:end
                                                 withClient:_textInputClient];
+
   NSLog(@"[scribble] firstRectForRange %@ - %@", @(start), @(end));
-  return CGRectMake(0, 0, start * 15, 19); // deleting does not work at all without this
+//  return CGRectMake(0, 0, start * 15, 19); // deleting does not work at all without this
+    NSUInteger first = start;
+    if (end < start) {
+        first = end;
+    }
+  if ([_selectionRects count] > first) {
+      NSLog(@"[scribble] firstRectForRange -> %f, %f, %f, %f", [_selectionRects[first][0] floatValue], [_selectionRects[first][1] floatValue], [_selectionRects[first][2] floatValue], [_selectionRects[first][3] floatValue]);
+//    return CGRectMake(0, 0, [_selectionRects[start][2] floatValue], [_selectionRects[start][3] floatValue]);
+    return CGRectMake([_selectionRects[first][0] floatValue], [_selectionRects[first][1] floatValue], [_selectionRects[first][2] floatValue], [_selectionRects[first][3] floatValue]);
+  }
+  // return _cachedFirstRectForRange; // deleting does not work at all without this
   // TODO(cbracken) Implement.
   return CGRectZero;
 }
 
 - (CGRect)caretRectForPosition:(UITextPosition*)position {
   // TODO(cbracken) Implement.
+    NSUInteger start = ((FlutterTextPosition*)position).index;
+    NSLog(@"[scribble] caretRectForPosition (%@)", @(start));
   return CGRectZero;
 }
 
+// TODO(jcouch): cursor not moving around correctly when tapping
 - (UITextPosition*)closestPositionToPoint:(CGPoint)point {
   // TODO(cbracken) Implement.
   // Maybe janky without these?
-  // NSLog(@"[scribble] closestPositionToPoint (%@, %@)", @(point.x), @(point.y));
+  NSLog(@"[scribble] closestPositionToPoint (%@, %@)", @(point.x), @(point.y));
+
+  NSUInteger _closestIndex = 0;
+  float _closestDistSq = 0;
+  for (NSUInteger i = 0; i < [_selectionRects count]; i++) {
+    CGRect rect = CGRectMake([_selectionRects[i][0] floatValue], [_selectionRects[i][1] floatValue], [_selectionRects[i][2] floatValue], [_selectionRects[i][3] floatValue]);
+    CGPoint center = CGPointMake(rect.origin.x + rect.size.width * 0.5, rect.origin.y + rect.size.height * 0.5);
+    float distSq = pow(center.x - point.x, 2) + pow(center.y - point.y, 2);
+    if (_closestIndex == i || distSq < _closestDistSq) {
+      _closestDistSq = distSq;
+      _closestIndex = i;
+    }
+  }
+
+  if (_closestIndex >= 0) {
+    NSLog(@"[scribble] closestPositionToPoint (%@, %@) -> (%@)", @(point.x), @(point.y), @(_closestIndex));
+    return [FlutterTextPosition positionWithIndex:_closestIndex];
+  }
+
   // if (point.x < 20) {
   //   NSLog(@"[scribble] positionWithIndex:0");
   //   return [FlutterTextPosition positionWithIndex:0];
@@ -951,14 +1033,42 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
 - (NSArray*)selectionRectsForRange:(UITextRange*)range {
   // TODO(cbracken) Implement.
-  NSLog(@"[scribble] selectionRectsForRange");
-  return @[];
+  NSUInteger start = ((FlutterTextPosition*)range.start).index;
+  NSUInteger end = ((FlutterTextPosition*)range.end).index;
+  NSLog(@"[scribble] selectionRectsForRange %@ -> %@", @(start), @(end));
+  NSMutableArray* rects = [[NSMutableArray alloc] init];
+  for (NSUInteger i = start; i <= end && i < [_selectionRects count]; i++) {
+      float width = [_selectionRects[start][2] floatValue];
+      if (start == end) { width = 0; }
+    CGRect rect = CGRectMake([_selectionRects[start][0] floatValue], [_selectionRects[start][1] floatValue], width, [_selectionRects[start][3] floatValue]);
+    FlutterTextSelectionRect* selectionRect = [[FlutterTextSelectionRect alloc] initWithRect:rect];
+
+    [rects addObject:selectionRect];
+  }
+  return rects;
 }
 
+// TODO(jcouch): IMPLEMENT?!?
 - (UITextPosition*)closestPositionToPoint:(CGPoint)point withinRange:(UITextRange*)range {
   // TODO(cbracken) Implement.
-  NSLog(@"[scribble] closestPositionToPoint (%@, %@) withinRange", @(point.x), @(point.y));
-  return range.start;
+  NSUInteger start = ((FlutterTextPosition*)range.start).index;
+  NSUInteger end = ((FlutterTextPosition*)range.end).index;
+  NSLog(@"[scribble] closestPositionToPoint (%@, %@) withinRange %@, %@", @(point.x), @(point.y), @(start), @(end));
+
+  NSUInteger _closestIndex = start;
+  float _closestDistSq = 0;
+  for (NSUInteger i = start; i <= end && i < [_selectionRects count]; i++) {
+    CGRect rect = CGRectMake([_selectionRects[i][0] floatValue], [_selectionRects[i][1] floatValue], [_selectionRects[i][2] floatValue], [_selectionRects[i][3] floatValue]);
+    CGPoint center = CGPointMake(rect.origin.x + rect.size.width * 0.5, rect.origin.y + rect.size.height * 0.5);
+    float distSq = pow(center.x - point.x, 2) + pow(center.y - point.y, 2);
+    if (_closestIndex == i || distSq < _closestDistSq) {
+      _closestDistSq = distSq;
+      _closestIndex = i;
+    }
+  }
+
+  NSLog(@"[scribble] closestPositionToPoint (%@, %@) withinRange %@, %@ -> %@", @(point.x), @(point.y), @(start), @(end), @(_closestIndex));
+  return [FlutterTextPosition positionWithIndex:_closestIndex];
 }
 
 - (UITextRange*)characterRangeAtPoint:(CGPoint)point {
@@ -1135,6 +1245,9 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
   } else if ([method isEqualToString:@"TextInput.finishAutofillContext"]) {
     [self triggerAutofillSave:[args boolValue]];
     result(nil);
+  } else if ([method isEqualToString:@"TextInput.setSelectionRects"]) {
+    [self setSelectionRects:args];
+    result(nil);
   } else {
     result(FlutterMethodNotImplemented);
   }
@@ -1143,6 +1256,10 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 - (void)setSizeAndTransform:(NSDictionary*)sizeAndTransform {
   // This seems necessary to set up where the scribble interactable element will be
   _activeView.frame = CGRectMake([sizeAndTransform[@"transform"][12] intValue], [sizeAndTransform[@"transform"][13] intValue], [sizeAndTransform[@"width"] intValue], [sizeAndTransform[@"height"] intValue]);
+}
+
+- (void)setSelectionRects:(NSArray*)rects {
+  [_activeView setSelectionRects:rects];
 }
 
 - (void)showTextInput {

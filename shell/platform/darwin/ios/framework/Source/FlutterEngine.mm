@@ -448,6 +448,7 @@ static constexpr int kNumProfilerSamplesPerSec = 5;
     [_textInputChannel.get() setMethodCallHandler:^(FlutterMethodCall* call, FlutterResult result) {
       [textInputPlugin handleMethodCall:call result:result];
     }];
+    textInputPlugin.channel = _textInputChannel.get();
   }
 }
 
@@ -672,6 +673,18 @@ static constexpr int kNumProfilerSamplesPerSec = 5;
                                   withClient:(int)client {
   [_textInputChannel.get() invokeMethod:@"TextInputClient.showAutocorrectionPromptRect"
                               arguments:@[ @(client), @(start), @(end) ]];
+}
+
+- (FlutterResult)firstRectForRange:(int)client start:(NSUInteger)start
+                                         end:(NSUInteger)end {
+  __block id _Nullable result = nil;
+  [_textInputChannel.get() invokeMethod:@"TextInputClient.firstRectForRange"
+                              arguments:@[ @(client), @(start), @(end) ]
+                              result:^(id _Nullable _result) {
+                                NSLog(@"TextInputClient.firstRectForRange result:%@", _result);
+                                result = _result;
+                              }];
+  return result;
 }
 
 #pragma mark - Screenshot Delegate
