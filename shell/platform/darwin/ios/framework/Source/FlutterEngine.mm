@@ -676,6 +676,10 @@ static constexpr int kNumProfilerSamplesPerSec = 5;
                               arguments:@[ @(client), @(start), @(end) ]];
 }
 
+- (void)showToolbar:(int)client {
+  [_textInputChannel.get() invokeMethod:@"TextInputClient.showToolbar" arguments:@[@(client)]];
+}
+
 #pragma mark - Screenshot Delegate
 
 - (flutter::Rasterizer::Screenshot)takeScreenshot:(flutter::Rasterizer::ScreenshotType)type

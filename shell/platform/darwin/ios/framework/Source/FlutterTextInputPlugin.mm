@@ -730,6 +730,12 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 - (void)setSelectedTextRange:(UITextRange*)selectedTextRange {
   [self setSelectedTextRangeLocal:selectedTextRange];
   [self updateEditingState];
+  if (_scribbleInProgress) {
+    FlutterTextRange* flutterTextRange = (FlutterTextRange*)selectedTextRange;
+    if (flutterTextRange.range.length > 0) {
+      [_textInputDelegate showToolbar:_textInputClient];
+    }
+  }
 }
 
 - (id)insertDictationResultPlaceholder {
@@ -1163,6 +1169,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
     @"composingBase" : @(composingBase),
     @"composingExtent" : @(composingExtent),
     @"text" : [NSString stringWithString:self.text],
+    @"scribbleInProgress" : @(_scribbleInProgress),
   };
 
   if (_textInputClient == 0 && _autofillId != nil) {
