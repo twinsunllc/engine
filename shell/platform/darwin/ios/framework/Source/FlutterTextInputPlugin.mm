@@ -1019,12 +1019,13 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
   NSUInteger start = ((FlutterTextPosition*)range.start).index;
   NSUInteger end = ((FlutterTextPosition*)range.end).index;
-  [_textInputDelegate showAutocorrectionPromptRectForStart:start
-                                                       end:end
-                                                withClient:_textInputClient];
+  if (!_scribbleInProgress) {
+    [_textInputDelegate showAutocorrectionPromptRectForStart:start
+                                                        end:end
+                                                  withClient:_textInputClient];
+  }
 
   NSLog(@"[scribble] firstRectForRange %@ - %@", @(start), @(end));
-//  return CGRectMake(0, 0, start * 15, 19); // deleting does not work at all without this
     NSUInteger first = start;
     if (end < start) {
         first = end;
@@ -1033,6 +1034,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
       NSLog(@"[scribble] firstRectForRange -> %f, %f, %f, %f", [_selectionRects[first][0] floatValue], [_selectionRects[first][1] floatValue], [_selectionRects[first][2] floatValue], [_selectionRects[first][3] floatValue]);
     return CGRectMake([_selectionRects[first][0] floatValue], [_selectionRects[first][1] floatValue], [_selectionRects[first][2] floatValue], [_selectionRects[first][3] floatValue]);
   }
+  NSLog(@"[scribble] firstRectForRange -> CGRectZero");
   // TODO(cbracken) Implement.
   return CGRectZero;
 }
