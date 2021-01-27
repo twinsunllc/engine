@@ -450,6 +450,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
   const char* _selectionAffinity;
   FlutterTextRange* _selectedTextRange;
   NSArray* _selectionRects;
+  BOOL _scribbleInProgress;
 }
 
 @synthesize tokenizer = _tokenizer;
@@ -606,27 +607,27 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event {
     NSLog(@"[scribble][cursor] touchesBegan");
-    [self.superview touchesBegan:touches withEvent:event];
+    [self.viewController touchesBegan:touches withEvent:event];
 }
 
 - (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event {
     NSLog(@"[scribble][cursor] touchesMoved");
-    [self.superview touchesMoved:touches withEvent:event];
+    [self.viewController touchesMoved:touches withEvent:event];
 }
 
 - (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event {
     NSLog(@"[scribble][cursor] touchesEnded");
-    [self.superview touchesEnded:touches withEvent:event];
+    [self.viewController touchesEnded:touches withEvent:event];
 }
 
 - (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event {
     NSLog(@"[scribble][cursor] touchesCancelled");
-    [self.superview touchesCancelled:touches withEvent:event];
+    [self.viewController touchesCancelled:touches withEvent:event];
 }
 
 - (void)touchesEstimatedPropertiesUpdated:(NSSet *)touches {
     NSLog(@"[scribble][cursor] touchesEstimatedPropertiesUpdated");
-    [self.superview touchesEstimatedPropertiesUpdated:touches];
+    [self.viewController touchesEstimatedPropertiesUpdated:touches];
 }
 
 // Extracts the selection information from the editing state dictionary.
@@ -663,6 +664,29 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 - (void)setIsVisibleToAutofill:(BOOL)isVisibleToAutofill {
   // This probably needs to change (think it is getting overwritten by the updateSizeAndTransform stuff for now)
   self.frame = isVisibleToAutofill ? CGRectMake(0, 0, 1, 1) : CGRectZero;
+}
+
+#pragma mark UIScribbleInteractionDelegate
+
+- (void)scribbleInteractionWillBeginWriting:(UIScribbleInteraction *)interaction {
+  NSLog(@"[scribble] scribbleInteractionWillBeginWriting");
+  _scribbleInProgress = true;
+}
+
+- (void)scribbleInteractionDidFinishWriting:(UIScribbleInteraction *)interaction {
+  NSLog(@"[scribble] scribbleInteractionDidFinishWriting");
+  _scribbleInProgress = false;
+}
+
+- (BOOL)scribbleInteraction:(UIScribbleInteraction *)interaction
+      shouldBeginAtLocation:(CGPoint)location {
+  NSLog(@"[scribble] scribbleInteraction shouldBeginAtLocation: %@, %@", @(location.x), @(location.y));
+  return true;
+}
+
+- (BOOL)scribbleInteractionShouldDelayFocus:(UIScribbleInteraction *)interaction {
+  NSLog(@"[scribble] scribbleInteractionShouldDelayFocus");
+  return false;
 }
 
 #pragma mark - UIResponder Overrides
@@ -807,8 +831,11 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 }
 
 - (void)setMarkedText:(NSString*)markedText selectedRange:(NSRange)markedSelectedRange {
+  NSLog(@"[scribble] setMarkedText %@", markedText);
   NSRange selectedRange = _selectedTextRange.range;
   NSRange markedTextRange = ((FlutterTextRange*)self.markedTextRange).range;
+
+  if (_scribbleInProgress) return;
 
   if (markedText == nil)
     markedText = @"";
@@ -1209,6 +1236,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 @implementation FlutterTextInputPlugin
 
 @synthesize textInputDelegate = _textInputDelegate;
+@synthesize viewController = _viewController;
 
 - (instancetype)init {
   self = [super init];
@@ -1280,6 +1308,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
 - (void)showTextInput {
   _activeView.textInputDelegate = _textInputDelegate;
+  _activeView.viewController = _viewController;
   [self addToInputParentViewIfNeeded:_activeView];
   [_activeView becomeFirstResponder];
 }
@@ -1487,6 +1516,10 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
   NSLog(@"addToInputParentViewIfNeeded");
   UIView* parentView = self.textInputParentView;
   if (inputView.superview != parentView) {
+    if (@available(iOS 14.0, *)) {
+      UIScribbleInteraction* interaction = [[[UIScribbleInteraction alloc] initWithDelegate:inputView] autorelease];
+      [inputView addInteraction:interaction];
+    }
     [parentView addSubview:inputView];
   }
 }
