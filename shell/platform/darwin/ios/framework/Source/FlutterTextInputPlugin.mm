@@ -580,7 +580,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
   NSRange oldSelectedRange = [(FlutterTextRange*)self.selectedTextRange range];
   if (!NSEqualRanges(selectedRange, oldSelectedRange)) {
-    NSLog(@"[scribble][cursor] setTextInputState - selection changed");
+    NSLog(@"[scribble][cursor] setTextInputState - selection changed %@ - %@", state[@"selectionBase"], state[@"selectionExtent"]);
     needsEditingStateUpdate = YES;
     [self.inputDelegate selectionWillChange:self];
 
@@ -728,6 +728,11 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 }
 
 - (void)setSelectedTextRange:(UITextRange*)selectedTextRange {
+  if (_scribbleFocused) {
+    _scribbleFocused = false;
+    self.selectedTextRange = _selectedTextRange;
+    return;
+  }
   [self setSelectedTextRangeLocal:selectedTextRange];
   [self updateEditingState];
   if (_scribbleInProgress) {
@@ -1567,14 +1572,18 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
                      referencePoint:(CGPoint)focusReferencePoint
                          completion:(void (^)(UIResponder<UITextInput>* focusedInput))completion {
   NSLog(@"[scribble][delegate] focusElementIfNeeded:%@ referencePoint:(%@, %@)", elementIdentifier, @(focusReferencePoint.x), @(focusReferencePoint.y));
-  [_textInputDelegate focusElement:elementIdentifier atPoint:focusReferencePoint];
-  completion(nil);
+  _reusableInputView.scribbleFocusing = true;
+  [_textInputDelegate focusElement:elementIdentifier atPoint:focusReferencePoint result:^(id _Nullable result){
+    _reusableInputView.scribbleFocusing = false;
+    _reusableInputView.scribbleFocused = true;
+    completion(_reusableInputView);
+  }];
 }
 
 - (BOOL)indirectScribbleInteraction:(UIIndirectScribbleInteraction*)interaction
          shouldDelayFocusForElement:(UIScribbleElementIdentifier)elementIdentifier {
   NSLog(@"[scribble][delegate] shouldDelayFocusForElement:%@", elementIdentifier);
-  return false;
+  return true;
 }
 
 - (void)indirectScribbleInteraction:(UIIndirectScribbleInteraction*)interaction

@@ -142,6 +142,8 @@ FLUTTER_EXPORT
 
 @property(nonatomic, assign) id<FlutterTextInputDelegate> textInputDelegate;
 @property(nonatomic, assign) FlutterViewController* viewController;
+@property(nonatomic) BOOL scribbleFocusing;
+@property(nonatomic) BOOL scribbleFocused;
 
 @end
 #endif  // SHELL_PLATFORM_IOS_FRAMEWORK_SOURCE_FLUTTERTEXTINPUTPLUGIN_H_

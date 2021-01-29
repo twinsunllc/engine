@@ -680,8 +680,8 @@ static constexpr int kNumProfilerSamplesPerSec = 5;
   [_textInputChannel.get() invokeMethod:@"TextInputClient.showToolbar" arguments:@[@(client)]];
 }
 
-- (void)focusElement:(UIScribbleElementIdentifier)elementIdentifier atPoint:(CGPoint)referencePoint {
-  [_textInputChannel.get() invokeMethod:@"TextInputClient.focusElement" arguments:@[elementIdentifier, @(referencePoint.x), @(referencePoint.y)]];
+- (void)focusElement:(UIScribbleElementIdentifier)elementIdentifier atPoint:(CGPoint)referencePoint result:(id)callback {
+  [_textInputChannel.get() invokeMethod:@"TextInputClient.focusElement" arguments:@[elementIdentifier, @(referencePoint.x), @(referencePoint.y)] result:callback];
 }
 
 #pragma mark - Screenshot Delegate
