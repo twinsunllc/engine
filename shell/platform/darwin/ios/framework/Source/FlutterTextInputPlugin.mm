@@ -1242,7 +1242,9 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 @property(nonatomic, assign) FlutterTextInputView* activeView;
 @end
 
-@implementation FlutterTextInputPlugin
+@implementation FlutterTextInputPlugin {
+  BOOL _hasScribbleInteraction;
+}
 
 @synthesize textInputDelegate = _textInputDelegate;
 @synthesize viewController = _viewController;
@@ -1275,6 +1277,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
   NSString* method = call.method;
   NSLog(@"TextInputPlugin.handleMethodCall %@", method);
+  [self setupIndirectScribbleInteraction];
   id args = call.arguments;
   if ([method isEqualToString:@"TextInput.show"]) {
     [self showTextInput];
@@ -1541,6 +1544,66 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
 - (void)clearTextInputClient {
   [_activeView setTextInputClient:0];
+}
+
+- (void) setupIndirectScribbleInteraction {
+  if (_hasScribbleInteraction) {
+    NSLog(@"[scribble][delegate] setupIndirectScribbleInteraction - already has scribble interaction");
+    return;
+  }
+  if (@available(iOS 14.0, *)) {
+    NSLog(@"[scribble][delegate] setupIndirectScribbleInteraction - setup");
+    _hasScribbleInteraction = true;
+    UIView* parentView = [UIApplication sharedApplication].keyWindow.rootViewController.view;
+    UIIndirectScribbleInteraction* _scribbleInteraction = [[[UIIndirectScribbleInteraction alloc] initWithDelegate:(id<UIIndirectScribbleInteractionDelegate>)self] autorelease];
+    [parentView addInteraction:_scribbleInteraction];
+  }
+}
+
+#pragma mark UIIndirectScribbleInteractionDelegate
+
+- (BOOL)indirectScribbleInteraction:(UIIndirectScribbleInteraction*)interaction
+                   isElementFocused:(UIScribbleElementIdentifier)elementIdentifier {
+  NSLog(@"[scribble][delegate] isElementFocused:%@", elementIdentifier);
+  return false;
+}
+
+- (void)indirectScribbleInteraction:(UIIndirectScribbleInteraction*)interaction
+               focusElementIfNeeded:(UIScribbleElementIdentifier)elementIdentifier
+                     referencePoint:(CGPoint)focusReferencePoint
+                         completion:(void (^)(UIResponder<UITextInput>* focusedInput))completion {
+  NSLog(@"[scribble][delegate] focusElementIfNeeded:%@ referencePoint:(%@, %@)", elementIdentifier, @(focusReferencePoint.x), @(focusReferencePoint.y));
+  completion(nil);
+}
+
+- (BOOL)indirectScribbleInteraction:(UIIndirectScribbleInteraction*)interaction
+         shouldDelayFocusForElement:(UIScribbleElementIdentifier)elementIdentifier {
+  NSLog(@"[scribble][delegate] shouldDelayFocusForElement:%@", elementIdentifier);
+  return false;
+}
+
+- (void)indirectScribbleInteraction:(UIIndirectScribbleInteraction*)interaction
+          willBeginWritingInElement:(UIScribbleElementIdentifier)elementIdentifier {
+  NSLog(@"[scribble][delegate] willBeginWritingInElement:%@", elementIdentifier);
+}
+
+- (void)indirectScribbleInteraction:(UIIndirectScribbleInteraction*)interaction
+          didFinishWritingInElement:(UIScribbleElementIdentifier)elementIdentifier {
+  NSLog(@"[scribble][delegate] didFinishWritingInElement:%@", elementIdentifier);
+}
+
+- (CGRect)indirectScribbleInteraction:(UIIndirectScribbleInteraction*)interaction
+                      frameForElement:(UIScribbleElementIdentifier)elementIdentifier {
+  NSLog(@"[scribble][delegate] frameForElement:%@", elementIdentifier);
+  return CGRectZero;
+}
+
+- (void)indirectScribbleInteraction:(UIIndirectScribbleInteraction*)interaction
+              requestElementsInRect:(CGRect)rect
+                         completion:
+                             (void (^)(NSArray<UIScribbleElementIdentifier>* elements))completion {
+  NSLog(@"[scribble][delegate] requestElementsInRect:%@", @(rect));
+  completion(@[]);
 }
 
 @end
