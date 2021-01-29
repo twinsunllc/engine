@@ -680,6 +680,10 @@ static constexpr int kNumProfilerSamplesPerSec = 5;
   [_textInputChannel.get() invokeMethod:@"TextInputClient.showToolbar" arguments:@[@(client)]];
 }
 
+- (void)focusElement:(UIScribbleElementIdentifier)elementIdentifier atPoint:(CGPoint)referencePoint {
+  [_textInputChannel.get() invokeMethod:@"TextInputClient.focusElement" arguments:@[elementIdentifier, @(referencePoint.x), @(referencePoint.y)]];
+}
+
 #pragma mark - Screenshot Delegate
 
 - (flutter::Rasterizer::Screenshot)takeScreenshot:(flutter::Rasterizer::ScreenshotType)type

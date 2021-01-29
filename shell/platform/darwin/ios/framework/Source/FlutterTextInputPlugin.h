@@ -25,8 +25,6 @@
  */
 - (UIView<UITextInput>*)textInputView;
 
-- (void)setupIndirectScribbleInteraction;
-
 // UIIndirectScribbleInteractionDelegate
 - (BOOL)indirectScribbleInteraction:(UIIndirectScribbleInteraction*)interaction
                    isElementFocused:(UIScribbleElementIdentifier)elementIdentifier
@@ -53,6 +51,15 @@
                          completion:
                              (void (^)(NSArray<UIScribbleElementIdentifier>* elements))completion
     API_AVAILABLE(ios(14.0));
+
+/**
+ * These are used by the UIIndirectScribbleInteractionDelegate methods to handle focusing on the
+ * correct element
+ */
+- (void)setupIndirectScribbleInteraction;
+- (void)registerScribbleElement:(UIScribbleElementIdentifier)elementIdentifier
+                       withRect:(CGRect)rect;
+- (void)deregisterScribbleElement:(UIScribbleElementIdentifier)elementIdentifier;
 
 @end
 

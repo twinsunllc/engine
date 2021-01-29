@@ -1244,6 +1244,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
 @implementation FlutterTextInputPlugin {
   BOOL _hasScribbleInteraction;
+  NSMutableDictionary<UIScribbleElementIdentifier, NSValue*>* _scribbleElements;
 }
 
 @synthesize textInputDelegate = _textInputDelegate;
@@ -1257,6 +1258,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
     _reusableInputView.secureTextEntry = NO;
     _autofillContext = [[NSMutableDictionary alloc] init];
     _activeView = _reusableInputView;
+    _scribbleElements = [[NSMutableDictionary alloc] init];
   }
 
   return self;
@@ -1303,6 +1305,12 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
     result(nil);
   } else if ([method isEqualToString:@"TextInput.setSelectionRects"]) {
     [self setSelectionRects:args];
+    result(nil);
+  } else if ([method isEqualToString:@"TextInput.registerScribbleElement"]) {
+    [self registerScribbleElement:args[0] withRect:CGRectMake([args[1] floatValue], [args[2] floatValue], [args[3] floatValue], [args[4] floatValue])];
+    result(nil);
+  } else if ([method isEqualToString:@"TextInput.deregisterScribbleElement"]) {
+    [self deregisterScribbleElement:args[0]];
     result(nil);
   } else {
     result(FlutterMethodNotImplemented);
@@ -1546,20 +1554,6 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
   [_activeView setTextInputClient:0];
 }
 
-- (void) setupIndirectScribbleInteraction {
-  if (_hasScribbleInteraction) {
-    NSLog(@"[scribble][delegate] setupIndirectScribbleInteraction - already has scribble interaction");
-    return;
-  }
-  if (@available(iOS 14.0, *)) {
-    NSLog(@"[scribble][delegate] setupIndirectScribbleInteraction - setup");
-    _hasScribbleInteraction = true;
-    UIView* parentView = [UIApplication sharedApplication].keyWindow.rootViewController.view;
-    UIIndirectScribbleInteraction* _scribbleInteraction = [[[UIIndirectScribbleInteraction alloc] initWithDelegate:(id<UIIndirectScribbleInteractionDelegate>)self] autorelease];
-    [parentView addInteraction:_scribbleInteraction];
-  }
-}
-
 #pragma mark UIIndirectScribbleInteractionDelegate
 
 - (BOOL)indirectScribbleInteraction:(UIIndirectScribbleInteraction*)interaction
@@ -1573,6 +1567,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
                      referencePoint:(CGPoint)focusReferencePoint
                          completion:(void (^)(UIResponder<UITextInput>* focusedInput))completion {
   NSLog(@"[scribble][delegate] focusElementIfNeeded:%@ referencePoint:(%@, %@)", elementIdentifier, @(focusReferencePoint.x), @(focusReferencePoint.y));
+  [_textInputDelegate focusElement:elementIdentifier atPoint:focusReferencePoint];
   completion(nil);
 }
 
@@ -1595,7 +1590,11 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 - (CGRect)indirectScribbleInteraction:(UIIndirectScribbleInteraction*)interaction
                       frameForElement:(UIScribbleElementIdentifier)elementIdentifier {
   NSLog(@"[scribble][delegate] frameForElement:%@", elementIdentifier);
-  return CGRectZero;
+  NSValue* elementValue = [_scribbleElements objectForKey:elementIdentifier];
+  if (elementValue == nil) {
+    return CGRectZero;
+  }
+  return [elementValue CGRectValue];
 }
 
 - (void)indirectScribbleInteraction:(UIIndirectScribbleInteraction*)interaction
@@ -1603,7 +1602,37 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
                          completion:
                              (void (^)(NSArray<UIScribbleElementIdentifier>* elements))completion {
   NSLog(@"[scribble][delegate] requestElementsInRect:%@", @(rect));
-  completion(@[]);
+  NSMutableArray<UIScribbleElementIdentifier>* elements = [[NSMutableArray alloc] init];
+  for (UIScribbleElementIdentifier key in _scribbleElements) {
+    CGRect elementRect = [[_scribbleElements objectForKey:key] CGRectValue];
+    if (CGRectIntersectsRect(rect, elementRect)) {
+      [elements addObject:key];
+    }
+  }
+  completion(elements);
+}
+
+#pragma mark - Methods related to Scribble support
+
+- (void) setupIndirectScribbleInteraction {
+  if (_hasScribbleInteraction) {
+    return;
+  }
+  if (@available(iOS 14.0, *)) {
+    _hasScribbleInteraction = true;
+    UIView* parentView = [UIApplication sharedApplication].keyWindow.rootViewController.view;
+    UIIndirectScribbleInteraction* _scribbleInteraction = [[[UIIndirectScribbleInteraction alloc] initWithDelegate:(id<UIIndirectScribbleInteractionDelegate>)self] autorelease];
+    [parentView addInteraction:_scribbleInteraction];
+  }
+}
+
+- (void)registerScribbleElement:(UIScribbleElementIdentifier)elementIdentifier
+                       withRect:(CGRect)rect {
+  [_scribbleElements setObject:[NSValue valueWithCGRect:rect] forKey:elementIdentifier];
+}
+
+- (void)deregisterScribbleElement:(UIScribbleElementIdentifier)elementIdentifier {
+  [_scribbleElements removeObjectForKey:elementIdentifier];
 }
 
 @end
