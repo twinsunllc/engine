@@ -331,7 +331,6 @@ static const UIAccessibilityTraits UIAccessibilityTraitUndocumentedEmptyLine = 0
 }
 
 - (void)setMarkedText:(NSString*)markedText selectedRange:(NSRange)selectedRange {
-  NSLog(@"[scribble] setMarkedText (AccessibilityTextEntry)");
   [[self textInputSurrogate] setMarkedText:markedText selectedRange:selectedRange];
 }
 

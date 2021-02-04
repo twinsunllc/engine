@@ -600,33 +600,24 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
   return needsEditingStateUpdate;
 }
 
-// Problem: tapping doesn't change the cursor location. have to make a small drag with the pencil.
-// Tried so far:
-// - not being the first responder
-// - forwarding the following selectors to the superview
-
+// Forward touches to the viewController to allow tapping inside the UITextField as normal
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event {
-    NSLog(@"[scribble][cursor] touchesBegan");
     [self.viewController touchesBegan:touches withEvent:event];
 }
 
 - (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event {
-    NSLog(@"[scribble][cursor] touchesMoved");
     [self.viewController touchesMoved:touches withEvent:event];
 }
 
 - (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event {
-    NSLog(@"[scribble][cursor] touchesEnded");
     [self.viewController touchesEnded:touches withEvent:event];
 }
 
 - (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event {
-    NSLog(@"[scribble][cursor] touchesCancelled");
     [self.viewController touchesCancelled:touches withEvent:event];
 }
 
 - (void)touchesEstimatedPropertiesUpdated:(NSSet *)touches {
-    NSLog(@"[scribble][cursor] touchesEstimatedPropertiesUpdated");
     [self.viewController touchesEstimatedPropertiesUpdated:touches];
 }
 
@@ -758,7 +749,6 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
            @"Expected a FlutterTextRange for range (got %@).", [range class]);
   NSRange textRange = ((FlutterTextRange*)range).range;
   NSAssert(textRange.location != NSNotFound, @"Expected a valid text range.");
-  NSLog(@"[scribble] textInRange %@ - %@ = %@", @(textRange.location), @(textRange.length), [self.text substringWithRange:textRange]);
   return [self.text substringWithRange:textRange];
 }
 
@@ -1057,10 +1047,8 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
   return CGRectZero;
 }
 
-// TODO(jcouch): cursor not moving around correctly when tapping
 - (UITextPosition*)closestPositionToPoint:(CGPoint)point {
   // TODO(cbracken) Implement.
-  // Maybe janky without these?
   NSLog(@"[scribble] closestPositionToPoint (%@, %@)", @(point.x), @(point.y));
 
   NSUInteger _closestIndex = 0;
@@ -1101,7 +1089,6 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
   return rects;
 }
 
-// TODO(jcouch): IMPLEMENT?!?
 - (UITextPosition*)closestPositionToPoint:(CGPoint)point withinRange:(UITextRange*)range {
   // TODO(cbracken) Implement.
   NSUInteger start = ((FlutterTextPosition*)range.start).index;
@@ -1126,27 +1113,23 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
 - (UITextRange*)characterRangeAtPoint:(CGPoint)point {
   // TODO(cbracken) Implement.
-  NSLog(@"[scribble] characterRangeAtPoint (%@, %@)", @(point.x), @(point.y));
   NSUInteger currentIndex = ((FlutterTextPosition*)_selectedTextRange.start).index;
   return [FlutterTextRange rangeWithNSRange:fml::RangeForCharacterAtIndex(self.text, currentIndex)];
 }
 
 - (void)beginFloatingCursorAtPoint:(CGPoint)point {
-  NSLog(@"[scribble][cursor] beginFloatingCursorAtPoint (%@, %@)", @(point.x), @(point.y));
   [_textInputDelegate updateFloatingCursor:FlutterFloatingCursorDragStateStart
                                 withClient:_textInputClient
                               withPosition:@{@"X" : @(point.x), @"Y" : @(point.y)}];
 }
 
 - (void)updateFloatingCursorAtPoint:(CGPoint)point {
-  NSLog(@"[scribble][cursor] updateFloatingCursorAtPoint (%@, %@)", @(point.x), @(point.y));
   [_textInputDelegate updateFloatingCursor:FlutterFloatingCursorDragStateUpdate
                                 withClient:_textInputClient
                               withPosition:@{@"X" : @(point.x), @"Y" : @(point.y)}];
 }
 
 - (void)endFloatingCursor {
-  NSLog(@"[scribble][cursor] endFloatingCursor");
   [_textInputDelegate updateFloatingCursor:FlutterFloatingCursorDragStateEnd
                                 withClient:_textInputClient
                               withPosition:@{@"X" : @(0), @"Y" : @(0)}];
@@ -1316,6 +1299,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 }
 
 - (void)setSizeAndTransform:(NSDictionary*)sizeAndTransform {
+  // TODO: only do this on iPadOS?
   // This seems necessary to set up where the scribble interactable element will be
   _activeView.frame = CGRectMake([sizeAndTransform[@"transform"][12] intValue], [sizeAndTransform[@"transform"][13] intValue], [sizeAndTransform[@"width"] intValue], [sizeAndTransform[@"height"] intValue]);
 }
