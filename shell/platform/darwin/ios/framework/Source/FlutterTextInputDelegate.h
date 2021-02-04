@@ -42,6 +42,7 @@ typedef NS_ENUM(NSInteger, FlutterFloatingCursorDragState) {
 - (void)focusElement:(UIScribbleElementIdentifier)elementIdentifier
              atPoint:(CGPoint)referencePoint
               result:(id)callback;
+- (void)requestElementsInRect:(CGRect)rect result:(id)callback;
 
 @end
 

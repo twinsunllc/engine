@@ -57,9 +57,6 @@
  * correct element
  */
 - (void)setupIndirectScribbleInteraction;
-- (void)registerScribbleElement:(UIScribbleElementIdentifier)elementIdentifier
-                       withRect:(CGRect)rect;
-- (void)deregisterScribbleElement:(UIScribbleElementIdentifier)elementIdentifier;
 
 @end
 
