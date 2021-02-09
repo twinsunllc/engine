@@ -690,6 +690,14 @@ static constexpr int kNumProfilerSamplesPerSec = 5;
   [_textInputChannel.get() invokeMethod:@"TextInputClient.requestElementsInRect" arguments:@[@(rect.origin.x), @(rect.origin.y), @(rect.size.width), @(rect.size.height)] result:callback];
 }
 
+- (void)scribbleInteractionBegan {
+  [_textInputChannel.get() invokeMethod:@"TextInputClient.scribbleInteractionBegan" arguments:nil];
+}
+
+- (void)scribbleInteractionFinished {
+  [_textInputChannel.get() invokeMethod:@"TextInputClient.scribbleInteractionFinished" arguments:nil];
+}
+
 #pragma mark - Screenshot Delegate
 
 - (flutter::Rasterizer::Screenshot)takeScreenshot:(flutter::Rasterizer::ScreenshotType)type
