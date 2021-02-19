@@ -1065,6 +1065,17 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
     }
   }
 
+  if ([_selectionRects count] > 0) {
+    NSUInteger i = [_selectionRects count] - 1;
+    CGRect rect = CGRectMake([_selectionRects[i][0] floatValue], [_selectionRects[i][1] floatValue], [_selectionRects[i][2] floatValue], [_selectionRects[i][3] floatValue]);
+    CGPoint pointForComparison = CGPointMake(rect.origin.x + rect.size.width, rect.origin.y + rect.size.height * 0.5);
+    float distSq = pow(pointForComparison.x - point.x, 2) + pow(pointForComparison.y - point.y, 2);
+    if (distSq < _closestDistSq) {
+      _closestDistSq = distSq;
+      _closestIndex = [_selectionRects count];
+    }
+  }
+
   if (_closestIndex >= 0) {
     NSLog(@"[scribble] closestPositionToPoint (%@, %@) -> (%@)", @(point.x), @(point.y), @(_closestIndex));
     return [FlutterTextPosition positionWithIndex:_closestIndex];
