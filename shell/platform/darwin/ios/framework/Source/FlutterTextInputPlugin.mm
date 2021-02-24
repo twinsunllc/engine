@@ -1054,14 +1054,24 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
   NSLog(@"[scribble] closestPositionToPoint (%@, %@)", @(point.x), @(point.y));
 
   NSUInteger _closestIndex = 0;
-  float _closestDistSq = 0;
+  CGRect _closestRect = CGRectZero;
+  float _closestY = 0;
+  float _closestX = 0;
   for (NSUInteger i = 0; i < [_selectionRects count]; i++) {
     CGRect rect = CGRectMake([_selectionRects[i][0] floatValue], [_selectionRects[i][1] floatValue], [_selectionRects[i][2] floatValue], [_selectionRects[i][3] floatValue]);
     CGPoint pointForComparison = CGPointMake(rect.origin.x, rect.origin.y + rect.size.height * 0.5);
-    float distSq = pow(pointForComparison.x - point.x, 2) + pow(pointForComparison.y - point.y, 2);
-    if (_closestIndex == i || distSq < _closestDistSq) {
-      _closestDistSq = distSq;
+    float yDist = abs(pointForComparison.y - point.y);
+    float xDist = abs(pointForComparison.x - point.x);
+    if (_closestIndex == i ||
+          (yDist < _closestY ||
+            (yDist == _closestY && (
+              (point.y <= rect.origin.y + rect.size.height && xDist < _closestX) ||
+              (point.y > rect.origin.y + rect.size.height && rect.origin.x > _closestRect.origin.x)
+            )))) {
+      _closestY = yDist;
+      _closestX = xDist;
       _closestIndex = i;
+      _closestRect = rect;
     }
   }
 
@@ -1069,9 +1079,15 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
     NSUInteger i = [_selectionRects count] - 1;
     CGRect rect = CGRectMake([_selectionRects[i][0] floatValue], [_selectionRects[i][1] floatValue], [_selectionRects[i][2] floatValue], [_selectionRects[i][3] floatValue]);
     CGPoint pointForComparison = CGPointMake(rect.origin.x + rect.size.width, rect.origin.y + rect.size.height * 0.5);
-    float distSq = pow(pointForComparison.x - point.x, 2) + pow(pointForComparison.y - point.y, 2);
-    if (distSq < _closestDistSq) {
-      _closestDistSq = distSq;
+    float yDist = abs(pointForComparison.y - point.y);
+    float xDist = abs(pointForComparison.x - point.x);
+    if (yDist < _closestY ||
+            (yDist == _closestY && (
+              (point.y <= rect.origin.y + rect.size.height && xDist < _closestX) ||
+              (point.y > rect.origin.y + rect.size.height && rect.origin.x + rect.size.width > _closestRect.origin.x)
+            ))) {
+      _closestY = yDist;
+      _closestX = xDist;
       _closestIndex = [_selectionRects count];
     }
   }
