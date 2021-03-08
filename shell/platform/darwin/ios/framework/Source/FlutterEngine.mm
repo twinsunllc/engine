@@ -247,8 +247,6 @@ static constexpr int kNumProfilerSamplesPerSec = 5;
       viewController ? [viewController getWeakPtr] : fml::WeakPtr<FlutterViewController>();
   self.iosPlatformView->SetOwnerViewController(_viewController);
   [self maybeSetupPlatformViewChannels];
-  _textInputPlugin.get().viewController = [self viewController];
-  [_textInputPlugin.get() setupIndirectScribbleInteraction];
 
   if (viewController) {
     __block FlutterEngine* blockSelf = self;
@@ -267,6 +265,8 @@ static constexpr int kNumProfilerSamplesPerSec = 5;
 
 - (void)attachView {
   self.iosPlatformView->attachView();
+  _textInputPlugin.get().viewController = [self viewController];
+  [_textInputPlugin.get() setupIndirectScribbleInteraction];
 }
 
 - (void)setFlutterViewControllerWillDeallocObserver:(id<NSObject>)observer {
@@ -679,15 +679,23 @@ static constexpr int kNumProfilerSamplesPerSec = 5;
 }
 
 - (void)showToolbar:(int)client {
-  [_textInputChannel.get() invokeMethod:@"TextInputClient.showToolbar" arguments:@[@(client)]];
+  [_textInputChannel.get() invokeMethod:@"TextInputClient.showToolbar" arguments:@[ @(client) ]];
 }
 
-- (void)focusElement:(UIScribbleElementIdentifier)elementIdentifier atPoint:(CGPoint)referencePoint result:(id)callback {
-  [_textInputChannel.get() invokeMethod:@"TextInputClient.focusElement" arguments:@[elementIdentifier, @(referencePoint.x), @(referencePoint.y)] result:callback];
+- (void)focusElement:(UIScribbleElementIdentifier)elementIdentifier
+             atPoint:(CGPoint)referencePoint
+              result:(id)callback {
+  [_textInputChannel.get()
+      invokeMethod:@"TextInputClient.focusElement"
+         arguments:@[ elementIdentifier, @(referencePoint.x), @(referencePoint.y) ]
+            result:callback];
 }
 
 - (void)requestElementsInRect:(CGRect)rect result:(id)callback {
-  [_textInputChannel.get() invokeMethod:@"TextInputClient.requestElementsInRect" arguments:@[@(rect.origin.x), @(rect.origin.y), @(rect.size.width), @(rect.size.height)] result:callback];
+  [_textInputChannel.get()
+      invokeMethod:@"TextInputClient.requestElementsInRect"
+         arguments:@[ @(rect.origin.x), @(rect.origin.y), @(rect.size.width), @(rect.size.height) ]
+            result:callback];
 }
 
 - (void)scribbleInteractionBegan {
@@ -695,7 +703,18 @@ static constexpr int kNumProfilerSamplesPerSec = 5;
 }
 
 - (void)scribbleInteractionFinished {
-  [_textInputChannel.get() invokeMethod:@"TextInputClient.scribbleInteractionFinished" arguments:nil];
+  [_textInputChannel.get() invokeMethod:@"TextInputClient.scribbleInteractionFinished"
+                              arguments:nil];
+}
+
+- (void)insertTextPlaceholderWithSize:(CGSize)size withClient:(int)client {
+  [_textInputChannel.get() invokeMethod:@"TextInputClient.insertTextPlaceholder"
+                              arguments:@[ @(client), @(size.width), @(size.height) ]];
+}
+
+- (void)removeTextPlaceholder:(int)client {
+  [_textInputChannel.get() invokeMethod:@"TextInputClient.removeTextPlaceholder"
+                              arguments:@[ @(client) ]];
 }
 
 #pragma mark - Screenshot Delegate

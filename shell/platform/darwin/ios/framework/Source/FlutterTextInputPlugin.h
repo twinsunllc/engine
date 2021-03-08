@@ -9,7 +9,7 @@
 
 #include "flutter/shell/platform/darwin/common/framework/Headers/FlutterChannels.h"
 #include "flutter/shell/platform/darwin/ios/framework/Source/FlutterTextInputDelegate.h"
-#import "flutter/shell/platform/darwin/ios/framework/Source/FlutterViewController_Internal.h"
+#include "flutter/shell/platform/darwin/ios/framework/Headers/FlutterViewController.h"
 
 @interface FlutterTextInputPlugin : NSObject
 
@@ -101,6 +101,10 @@
 
 @end
 
+API_AVAILABLE(ios(13.0)) @interface FlutterTextPlaceholder : UITextPlaceholder
+@end
+
+
 #if FLUTTER_RUNTIME_MODE == FLUTTER_RUNTIME_MODE_DEBUG
 FLUTTER_EXPORT
 #endif
@@ -126,6 +130,9 @@ FLUTTER_EXPORT
 @property(nonatomic) UITextSmartQuotesType smartQuotesType API_AVAILABLE(ios(11.0));
 @property(nonatomic) UITextSmartDashesType smartDashesType API_AVAILABLE(ios(11.0));
 @property(nonatomic, copy) UITextContentType textContentType API_AVAILABLE(ios(10.0));
+
+- (UITextPlaceholder*)insertTextPlaceholderWithSize:(CGSize)size API_AVAILABLE(ios(13.0));
+- (void)removeTextPlaceholder:(UITextPlaceholder*)textPlaceholder API_AVAILABLE(ios(13.0));
 
 // UIScribbleInteractionDelegate
 - (void)scribbleInteractionWillBeginWriting:(UIScribbleInteraction*)interaction
