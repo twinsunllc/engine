@@ -370,22 +370,22 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
 @implementation FlutterTextSelectionRect
 
-@synthesize rect;
-@synthesize writingDirection;
-@synthesize containsStart;
-@synthesize containsEnd;
-@synthesize isVertical;
+@synthesize rect = _rect;
+@synthesize writingDirection = _writingDirection;
+@synthesize containsStart = _containsStart;
+@synthesize containsEnd = _containsEnd;
+@synthesize isVertical = _isVertical;
 
 + (instancetype)selectionRectWithRectAndInfo:(CGRect)rect
                             writingDirection:(NSWritingDirection)writingDirection
                                containsStart:(BOOL)containsStart
                                  containsEnd:(BOOL)containsEnd
                                   isVertical:(BOOL)isVertical {
-  return [[[FlutterTextSelectionRect alloc] initWithRectAndInfo:rect
-                                               writingDirection:writingDirection
-                                                  containsStart:containsStart
-                                                    containsEnd:containsEnd
-                                                     isVertical:isVertical] autorelease];
+  return [[FlutterTextSelectionRect alloc] initWithRectAndInfo:rect
+                                              writingDirection:writingDirection
+                                                 containsStart:containsStart
+                                                   containsEnd:containsEnd
+                                                    isVertical:isVertical];
 }
 
 - (instancetype)initWithRectAndInfo:(CGRect)rect
@@ -394,6 +394,13 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
                         containsEnd:(BOOL)containsEnd
                          isVertical:(BOOL)isVertical {
   self = [super init];
+  if (self) {
+    _rect = rect;
+    _writingDirection = writingDirection;
+    _containsStart = containsStart;
+    _containsEnd = containsEnd;
+    _isVertical = isVertical;
+  }
   return self;
 }
 
@@ -498,6 +505,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
       _smartQuotesType = UITextSmartQuotesTypeYes;
       _smartDashesType = UITextSmartDashesTypeYes;
     }
+    _selectionRects = @[];
   }
 
   return self;
@@ -1080,8 +1088,6 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
 - (UITextPosition*)closestPositionToPoint:(CGPoint)point {
   // TODO(cbracken) Implement.
-  NSUInteger currentIndex = ((FlutterTextPosition*)_selectedTextRange.start).index;
-  return [FlutterTextPosition positionWithIndex:currentIndex];
   NSLog(@"[scribble] closestPositionToPoint (%@, %@)", @(point.x), @(point.y));
 
   if ([_selectionRects count] == 0) {
@@ -1096,7 +1102,6 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
 - (NSArray*)selectionRectsForRange:(UITextRange*)range {
   // TODO(cbracken) Implement.
-  return @[];
   NSUInteger start = ((FlutterTextPosition*)range.start).index;
   NSUInteger end = ((FlutterTextPosition*)range.end).index;
   NSLog(@"[scribble] selectionRectsForRange %@ -> %@", @(start), @(end));
@@ -1121,7 +1126,6 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
 - (UITextPosition*)closestPositionToPoint:(CGPoint)point withinRange:(UITextRange*)range {
   // TODO(cbracken) Implement.
-  return range.start;
   NSUInteger start = ((FlutterTextPosition*)range.start).index;
   NSUInteger end = ((FlutterTextPosition*)range.end).index;
   NSLog(@"[scribble] closestPositionToPoint (%@, %@) withinRange %@, %@", @(point.x), @(point.y),
@@ -1673,15 +1677,17 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
                      result:^(id _Nullable result) {
                        NSMutableArray<UIScribbleElementIdentifier>* elements =
                            [[NSMutableArray alloc] init];
-                       for (NSArray* elementArray in result) {
-                         [elements addObject:elementArray[0]];
-                         [_scribbleElements
-                             setObject:[NSValue
-                                           valueWithCGRect:CGRectMake([elementArray[1] floatValue],
+                       if ([result isKindOfClass:[NSArray class]]) {
+                         for (NSArray* elementArray in result) {
+                           [elements addObject:elementArray[0]];
+                           [_scribbleElements
+                               setObject:[NSValue valueWithCGRect:CGRectMake(
+                                                                      [elementArray[1] floatValue],
                                                                       [elementArray[2] floatValue],
                                                                       [elementArray[3] floatValue],
                                                                       [elementArray[4] floatValue])]
-                                forKey:elementArray[0]];
+                                  forKey:elementArray[0]];
+                         }
                        }
                        completion(elements);
                      }];
