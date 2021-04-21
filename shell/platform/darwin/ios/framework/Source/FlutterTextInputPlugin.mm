@@ -476,6 +476,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
   FlutterTextRange* _selectedTextRange;
   NSArray* _selectionRects;
   BOOL _scribbleInProgress;
+  BOOL _hasPlaceholder;
 }
 
 @synthesize tokenizer = _tokenizer;
@@ -575,6 +576,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
 - (void)setTextInputClient:(int)client {
   _textInputClient = client;
+  _hasPlaceholder = NO;
 }
 
 // Return true if the new input state needs to be synced back to the framework.
@@ -1190,21 +1192,24 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
   if ([_selectionRects count] > 0 && textRange.range.length == end) {
     NSUInteger i = [_selectionRects count] - 1;
     NSUInteger position = [_selectionRects[i][4] unsignedIntegerValue] + 1;
-    CGRect rect =
-        CGRectMake([_selectionRects[i][0] floatValue], [_selectionRects[i][1] floatValue],
-                   [_selectionRects[i][2] floatValue], [_selectionRects[i][3] floatValue]);
-    CGPoint pointForComparison =
-        CGPointMake(rect.origin.x + rect.size.width, rect.origin.y + rect.size.height * 0.5);
-    float yDist = abs(pointForComparison.y - point.y);
-    float xDist = abs(pointForComparison.x - point.x);
-    if (yDist < _closestY || (yDist == _closestY &&
-                              ((point.y <= rect.origin.y + rect.size.height && xDist < _closestX) ||
-                               (point.y > rect.origin.y + rect.size.height &&
-                                rect.origin.x + rect.size.width > _closestRect.origin.x)))) {
-      _closestY = yDist;
-      _closestX = xDist;
-      _closestIndex = [_selectionRects count];
-      _closestPosition = position;
+    if (position <= end) {
+      CGRect rect =
+          CGRectMake([_selectionRects[i][0] floatValue], [_selectionRects[i][1] floatValue],
+                     [_selectionRects[i][2] floatValue], [_selectionRects[i][3] floatValue]);
+      CGPoint pointForComparison =
+          CGPointMake(rect.origin.x + rect.size.width, rect.origin.y + rect.size.height * 0.5);
+      float yDist = abs(pointForComparison.y - point.y);
+      float xDist = abs(pointForComparison.x - point.x);
+      if (yDist < _closestY ||
+          (yDist == _closestY &&
+           ((point.y <= rect.origin.y + rect.size.height && xDist < _closestX) ||
+            (point.y > rect.origin.y + rect.size.height &&
+             rect.origin.x + rect.size.width > _closestRect.origin.x)))) {
+        _closestY = yDist;
+        _closestX = xDist;
+        _closestIndex = [_selectionRects count];
+        _closestPosition = position;
+      }
     }
   }
   NSLog(@"[scribble] closestPositionToPoint (%@, %@) within range (%@ - %@) -> %@", @(point.x),
@@ -1274,6 +1279,9 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
 - (void)insertText:(NSString*)text {
   NSLog(@"[scribble] insertText: %@", text);
+  if (_hasPlaceholder) {
+    _selectionRects = @[];
+  }
   _selectionAffinity = _kTextAffinityDownstream;
   [self replaceRange:_selectedTextRange withText:text];
 }
@@ -1281,11 +1289,13 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 - (UITextPlaceholder*)insertTextPlaceholderWithSize:(CGSize)size {
   NSLog(@"[scribble] insertTextPlaceholderWithSize");
   [_textInputDelegate insertTextPlaceholderWithSize:size withClient:_textInputClient];
+  _hasPlaceholder = YES;
   return [[FlutterTextPlaceholder alloc] init];
 }
 
 - (void)removeTextPlaceholder:(UITextPlaceholder*)textPlaceholder {
   NSLog(@"[scribble] removeTextPlaceholder");
+  _hasPlaceholder = NO;
   [_textInputDelegate removeTextPlaceholder:_textInputClient];
 }
 
