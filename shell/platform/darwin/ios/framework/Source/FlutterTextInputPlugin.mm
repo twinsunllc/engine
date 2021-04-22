@@ -1719,7 +1719,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 - (BOOL)indirectScribbleInteraction:(UIIndirectScribbleInteraction*)interaction
          shouldDelayFocusForElement:(UIScribbleElementIdentifier)elementIdentifier {
   NSLog(@"[scribble][delegate] shouldDelayFocusForElement:%@", elementIdentifier);
-  return NO;
+  return YES;
 }
 
 - (void)indirectScribbleInteraction:(UIIndirectScribbleInteraction*)interaction
