@@ -1171,7 +1171,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
       float yDist = abs(pointForComparison.y - point.y);
       float xDist = abs(pointForComparison.x - point.x);
       if (_closestIndex == 0 ||
-          (yDist < _closestY ||
+          (yDist < _closestY - 1 ||
            (yDist == _closestY &&
             ((point.y <= rect.origin.y + rect.size.height && xDist < _closestX) ||
              (point.y > rect.origin.y + rect.size.height &&
@@ -1189,7 +1189,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
       rangeWithNSRange:fml::RangeForCharactersInRange(self.text, NSMakeRange(0, self.text.length))]
       copy];
 
-  if ([_selectionRects count] > 0 && textRange.range.length == end) {
+  if ([_selectionRects count] > 0 && textRange.range.location + textRange.range.length == end) {
     NSUInteger i = [_selectionRects count] - 1;
     NSUInteger position = [_selectionRects[i][4] unsignedIntegerValue] + 1;
     if (position <= end) {
@@ -1200,7 +1200,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
           CGPointMake(rect.origin.x + rect.size.width, rect.origin.y + rect.size.height * 0.5);
       float yDist = abs(pointForComparison.y - point.y);
       float xDist = abs(pointForComparison.x - point.x);
-      if (yDist < _closestY ||
+      if (yDist < _closestY - 1 ||
           (yDist == _closestY &&
            ((point.y <= rect.origin.y + rect.size.height && xDist < _closestX) ||
             (point.y > rect.origin.y + rect.size.height &&
