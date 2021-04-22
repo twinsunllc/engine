@@ -1069,6 +1069,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
   }
 
   NSLog(@"[scribble] firstRectForRange %@ - %@", @(start), @(end));
+
   NSUInteger first = start;
   if (end < start) {
     first = end;
@@ -1122,9 +1123,9 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
 - (NSArray*)selectionRectsForRange:(UITextRange*)range {
   // TODO(cbracken) Implement.
-  NSLog(@"[scribble] selectionRectsForRange");
   NSUInteger start = ((FlutterTextPosition*)range.start).index;
   NSUInteger end = ((FlutterTextPosition*)range.end).index;
+  NSLog(@"[scribble] selectionRectsForRange %@ - %@", @(start), @(end));
   NSMutableArray* rects = [[NSMutableArray alloc] init];
   for (NSUInteger i = 0; i < [_selectionRects count]; i++) {
     if ([_selectionRects[i][4] unsignedIntegerValue] >= start &&
@@ -1280,7 +1281,37 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 - (void)insertText:(NSString*)text {
   NSLog(@"[scribble] insertText: %@", text);
   if (_hasPlaceholder) {
-    _selectionRects = @[];
+    NSMutableArray* copiedRects = [[NSMutableArray alloc] initWithCapacity:[_selectionRects count]];
+    NSUInteger insertPosition = ((FlutterTextPosition*)_selectedTextRange.start).index - 1;
+    NSUInteger insertIndex = 0;
+    for (NSUInteger i = 0; i < [_selectionRects count]; i++) {
+      NSUInteger rectPosition = [_selectionRects[i][4] unsignedIntegerValue];
+      if (rectPosition == insertPosition) {
+        insertIndex = i;
+        for (NSUInteger j = 0; j <= text.length; j++) {
+          [copiedRects addObject:@[
+            _selectionRects[i][0],
+            _selectionRects[i][1],
+            _selectionRects[i][2],
+            _selectionRects[i][3],
+            [NSNumber numberWithInt:rectPosition + j],
+          ]];
+        }
+      } else {
+        if (rectPosition > insertPosition) {
+          rectPosition = rectPosition + text.length;
+        }
+        [copiedRects addObject:@[
+          _selectionRects[i][0],
+          _selectionRects[i][1],
+          _selectionRects[i][2],
+          _selectionRects[i][3],
+          [NSNumber numberWithInt:rectPosition],
+        ]];
+      }
+    }
+
+    _selectionRects = copiedRects;
   }
   _selectionAffinity = _kTextAffinityDownstream;
   [self replaceRange:_selectedTextRange withText:text];
@@ -1688,7 +1719,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 - (BOOL)indirectScribbleInteraction:(UIIndirectScribbleInteraction*)interaction
          shouldDelayFocusForElement:(UIScribbleElementIdentifier)elementIdentifier {
   NSLog(@"[scribble][delegate] shouldDelayFocusForElement:%@", elementIdentifier);
-  return true;
+  return NO;
 }
 
 - (void)indirectScribbleInteraction:(UIIndirectScribbleInteraction*)interaction
