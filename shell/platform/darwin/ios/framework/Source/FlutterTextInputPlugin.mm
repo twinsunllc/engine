@@ -752,14 +752,10 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 }
 
 - (void)setSelectedTextRange:(UITextRange*)selectedTextRange {
-  if (_scribbleFocused) {
-    _scribbleFocused = false;
-    self.selectedTextRange = _selectedTextRange;
-    return;
-  }
   [self setSelectedTextRangeLocal:selectedTextRange];
   [self updateEditingState];
-  if (_scribbleInProgress) {
+  if (_scribbleInProgress || _scribbleFocused) {
+    _scribbleFocused = false;
     FlutterTextRange* flutterTextRange = (FlutterTextRange*)selectedTextRange;
     if (flutterTextRange.range.length > 0) {
       [_textInputDelegate showToolbar:_textInputClient];
@@ -869,7 +865,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
   NSRange selectedRange = _selectedTextRange.range;
   NSRange markedTextRange = ((FlutterTextRange*)self.markedTextRange).range;
 
-  if (_scribbleInProgress)
+  if (_scribbleInProgress || _scribbleFocusing || _scribbleFocused)
     return;
 
   if (markedText == nil)
@@ -1062,7 +1058,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
   NSUInteger start = ((FlutterTextPosition*)range.start).index;
   NSUInteger end = ((FlutterTextPosition*)range.end).index;
-  if (!_scribbleInProgress) {
+  if (!_scribbleInProgress && !_scribbleFocusing && !_scribbleFocused) {
     [_textInputDelegate showAutocorrectionPromptRectForStart:start
                                                          end:end
                                                   withClient:_textInputClient];
@@ -1701,8 +1697,9 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
 - (BOOL)indirectScribbleInteraction:(UIIndirectScribbleInteraction*)interaction
                    isElementFocused:(UIScribbleElementIdentifier)elementIdentifier {
-  NSLog(@"[scribble][delegate] isElementFocused:%@", elementIdentifier);
-  return false;
+  NSLog(@"[scribble][delegate] isElementFocused:%@ -> %@", elementIdentifier,
+        @(_reusableInputView.scribbleFocused));
+  return _reusableInputView.scribbleFocused;
 }
 
 - (void)indirectScribbleInteraction:(UIIndirectScribbleInteraction*)interaction
@@ -1717,6 +1714,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
                             result:^(id _Nullable result) {
                               _reusableInputView.scribbleFocusing = false;
                               _reusableInputView.scribbleFocused = true;
+                              NSLog(@"[scribble][delegate] focusElementIfNeeded finished");
                               completion(_reusableInputView);
                             }];
 }
@@ -1724,7 +1722,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 - (BOOL)indirectScribbleInteraction:(UIIndirectScribbleInteraction*)interaction
          shouldDelayFocusForElement:(UIScribbleElementIdentifier)elementIdentifier {
   NSLog(@"[scribble][delegate] shouldDelayFocusForElement:%@", elementIdentifier);
-  return YES;
+  return NO;
 }
 
 - (void)indirectScribbleInteraction:(UIIndirectScribbleInteraction*)interaction
