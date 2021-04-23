@@ -1691,6 +1691,7 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
 - (void)clearTextInputClient {
   [_activeView setTextInputClient:0];
+  _activeView.frame = CGRectZero;
 }
 
 #pragma mark UIIndirectScribbleInteractionDelegate
