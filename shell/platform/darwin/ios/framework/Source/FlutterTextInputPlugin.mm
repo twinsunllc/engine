@@ -1145,9 +1145,14 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
                                                                    NSMakeRange(0, self.text.length))
                                         .length)
                    isVertical:FALSE];
+      // NSLog(@"[scribble] selectionRect(%@) %@, %@, %@, %@", @([_selectionRects[i][4] intValue]),
+      //       @([_selectionRects[i][0] floatValue]), @([_selectionRects[i][1] floatValue]),
+      //       @(width),
+      //       @([_selectionRects[i][3] floatValue]));
       [rects addObject:selectionRect];
     }
   }
+  NSLog(@"[scribble] selectionRectsForRange %@ - %@ -> %@", @(start), @(end), @([rects count]));
   return rects;
 }
 
@@ -1280,39 +1285,39 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
 - (void)insertText:(NSString*)text {
   NSLog(@"[scribble] insertText: %@", text);
-  if (_hasPlaceholder) {
-    NSMutableArray* copiedRects = [[NSMutableArray alloc] initWithCapacity:[_selectionRects count]];
-    NSUInteger insertPosition = ((FlutterTextPosition*)_selectedTextRange.start).index - 1;
-    NSUInteger insertIndex = 0;
-    for (NSUInteger i = 0; i < [_selectionRects count]; i++) {
-      NSUInteger rectPosition = [_selectionRects[i][4] unsignedIntegerValue];
-      if (rectPosition == insertPosition) {
-        insertIndex = i;
-        for (NSUInteger j = 0; j <= text.length; j++) {
-          [copiedRects addObject:@[
-            _selectionRects[i][0],
-            _selectionRects[i][1],
-            _selectionRects[i][2],
-            _selectionRects[i][3],
-            [NSNumber numberWithInt:rectPosition + j],
-          ]];
-        }
-      } else {
-        if (rectPosition > insertPosition) {
-          rectPosition = rectPosition + text.length;
-        }
+  // if (_hasPlaceholder) {
+  NSMutableArray* copiedRects = [[NSMutableArray alloc] initWithCapacity:[_selectionRects count]];
+  NSUInteger insertPosition = ((FlutterTextPosition*)_selectedTextRange.start).index - 1;
+  NSUInteger insertIndex = 0;
+  for (NSUInteger i = 0; i < [_selectionRects count]; i++) {
+    NSUInteger rectPosition = [_selectionRects[i][4] unsignedIntegerValue];
+    if (rectPosition == insertPosition) {
+      insertIndex = i;
+      for (NSUInteger j = 0; j <= text.length; j++) {
         [copiedRects addObject:@[
           _selectionRects[i][0],
           _selectionRects[i][1],
           _selectionRects[i][2],
           _selectionRects[i][3],
-          [NSNumber numberWithInt:rectPosition],
+          [NSNumber numberWithInt:rectPosition + j],
         ]];
       }
+    } else {
+      if (rectPosition > insertPosition) {
+        rectPosition = rectPosition + text.length;
+      }
+      [copiedRects addObject:@[
+        _selectionRects[i][0],
+        _selectionRects[i][1],
+        _selectionRects[i][2],
+        _selectionRects[i][3],
+        [NSNumber numberWithInt:rectPosition],
+      ]];
     }
-
-    _selectionRects = copiedRects;
   }
+
+  _selectionRects = copiedRects;
+  // }
   _selectionAffinity = _kTextAffinityDownstream;
   [self replaceRange:_selectedTextRange withText:text];
 }
