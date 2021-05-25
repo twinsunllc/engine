@@ -581,7 +581,6 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
 // Return true if the new input state needs to be synced back to the framework.
 - (BOOL)setTextInputState:(NSDictionary*)state {
-  NSLog(@"[scribble][cursor] setTextInputState");
   NSString* newText = state[@"text"];
   BOOL textChanged = ![self.text isEqualToString:newText];
   if (textChanged) {
@@ -1281,7 +1280,6 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
 - (void)insertText:(NSString*)text {
   NSLog(@"[scribble] insertText: %@", text);
-  // if (_hasPlaceholder) {
   NSMutableArray* copiedRects = [[NSMutableArray alloc] initWithCapacity:[_selectionRects count]];
   NSUInteger insertPosition = ((FlutterTextPosition*)_selectedTextRange.start).index - 1;
   NSUInteger insertIndex = 0;
@@ -1313,9 +1311,10 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
   }
 
   _selectionRects = copiedRects;
-  // }
   _selectionAffinity = _kTextAffinityDownstream;
   [self replaceRange:_selectedTextRange withText:text];
+
+  [self ensureUndoEnabled];
 }
 
 - (UITextPlaceholder*)insertTextPlaceholderWithSize:(CGSize)size {
@@ -1358,6 +1357,8 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
 
   if (!_selectedTextRange.isEmpty)
     [self replaceRange:_selectedTextRange withText:@""];
+
+  [self ensureUndoEnabled];
 }
 
 - (BOOL)accessibilityElementsHidden {
@@ -1371,6 +1372,29 @@ static FlutterAutofillType autofillTypeOf(NSDictionary* configuration) {
   // `TextInputSemanticsObject` in that `SemanticsObject` tree rather than in this
   // `FlutterTextInputView` bridge which doesn't appear above a text field from the Flutter side.
   return YES;
+}
+
+- (void)ensureUndoEnabled {
+  if (@available(iOS 9.0, *)) {
+    if (![self.undoManager canUndo]) {
+      NSLog(@"[Undo] register undo");
+      self.undoManager.groupsByEvent = NO;
+      [self.undoManager beginUndoGrouping];
+      [self.undoManager registerUndoWithTarget:self
+                                       handler:^(id target) {
+                                         NSLog(@"[Undo] native undo handler");
+                                       }];
+      [self.undoManager endUndoGrouping];
+      NSLog(@"[Undo] canUndo: %@", @([self.undoManager canUndo]));
+      self.undoManager.groupsByEvent = YES;
+      dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.01 * (double)NSEC_PER_SEC),
+                     dispatch_get_main_queue(), ^{
+                       NSLog(@"[Undo] removeAllActionsWithTarget:self");
+                       [self.undoManager removeAllActionsWithTarget:self];
+                       NSLog(@"[Undo] canUndo: %@", @([self.undoManager canUndo]));
+                     });
+    }
+  }
 }
 
 @end
